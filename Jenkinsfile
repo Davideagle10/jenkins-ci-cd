@@ -4,7 +4,6 @@ pipeline {
     }
     
     environment {
-        // Variables de entorno
         ECR_URI = credentials('ecr-uri')
         AWS_ACCOUNT_ID = credentials('aws-account-id')
         AWS_REGION = 'us-east-1'
@@ -12,7 +11,7 @@ pipeline {
         IMAGE_TAG = "${env.BUILD_ID}"
     }
     
-    stages {  
+    stages {
         stage('Checkout') {
             steps {
                 checkout scm
@@ -27,6 +26,7 @@ pipeline {
                         docker --version
                         aws --version
                         python3 --version
+                        pip3 --version
                         trivy --version
                         echo "==============================="
                     '''
@@ -65,10 +65,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build multi-stage
                     sh "docker build -t ${ECR_REPOSITORY}:${IMAGE_TAG} ."
-                    
-                    // Tag adicional
                     sh "docker tag ${ECR_REPOSITORY}:${IMAGE_TAG} ${ECR_REPOSITORY}:latest"
                 }
             }
@@ -91,10 +88,9 @@ pipeline {
             steps {
                 script {
                     sh """                
-                        echo "=== AWS ECR PUSH  ==="
+                        echo "=== AWS ECR PUSH ==="
                         echo ""
                         
-                        # Autenticación Docker con ECR
                         aws ecr get-login-password --region ${AWS_REGION} | \
                         docker login \
                             --username AWS \
@@ -104,15 +100,13 @@ pipeline {
                         echo ""
                         
                         echo "=== Tags creados ==="
-                        # Paso 2: Tag para ECR
                         docker tag ${ECR_REPOSITORY}:${IMAGE_TAG} ${ECR_URI}:${IMAGE_TAG}
                         docker tag ${ECR_REPOSITORY}:${IMAGE_TAG} ${ECR_URI}:latest
                         
                         echo "  ${ECR_REPOSITORY}:${IMAGE_TAG} → ${ECR_URI}:${IMAGE_TAG}"
-                        echo "  ${ECR_REPOSitORY}:${IMAGE_TAG} → ${ECR_URI}:latest"
+                        echo "  ${ECR_REPOSITORY}:${IMAGE_TAG} → ${ECR_URI}:latest"
                         echo ""
                         
-                        # Paso 3: Push a ECR
                         echo "=== Subiendo imágenes a ECR ==="
                         docker push ${ECR_URI}:${IMAGE_TAG}
                         docker push ${ECR_URI}:latest
@@ -126,18 +120,18 @@ pipeline {
                 }
             }
         }
-    }  // ← stages CIERRA AQUÍ (después de TODOS los stages, línea 147)
+    }
     
     post {
         always {
-            script {
-            // Buscar archivos XML de tests
-            def testResults = findFiles(glob: '**/test-results/*.xml')
-            if (testResults) {
-                junit '**/test-results/*.xml'
-            } else {
-                echo "No se encontraron reportes de tests"
-            }
+            echo "Pipeline ${currentBuild.fullDisplayName} completado"
+            cleanWs()
+        }
+        success {
+            echo "Pipeline exitoso"
+        }
+        failure {
+            echo "Pipeline falló"
         }
     }
 }
