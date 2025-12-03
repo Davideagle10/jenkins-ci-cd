@@ -38,27 +38,23 @@ pipeline {
             steps {
                 sh '''
                     pip3 install -r requirements.txt
-                    python3 -m pytest tests/ -v --cov=app --cov-report=xml
+                    python3 -m pytest tests/ -v \
+                        --cov=app \
+                        --cov-report=xml \
+                        --junitxml=test-results.xml
                 '''
             }
             post {
-        always {
-            // Buscar archivos XML de coverage
-            script {
-                // Listar archivos generados para debugging
-                sh 'find . -name "*.xml" -type f'
-                
-                // Usar el archivo coverage.xml que pytest-cov genera
-                junit 'coverage.xml'
+                always {
+                    junit 'test-results.xml'
+                    publishHTML(target: [
+                        reportDir: 'htmlcov',
+                        reportFiles: 'index.html',
+                        reportName: 'Coverage Report'
+                    ])
+                }
             }
-            publishHTML(target: [
-                reportDir: 'htmlcov',
-                reportFiles: 'index.html',
-                reportName: 'Coverage Report'
-            ])
         }
-    }
-}
         
         stage('Lint Code') {
             steps {
