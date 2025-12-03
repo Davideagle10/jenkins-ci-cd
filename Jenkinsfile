@@ -42,16 +42,23 @@ pipeline {
                 '''
             }
             post {
-                always {
-                    junit '**/test-results/*.xml'
-                    publishHTML(target: [
-                        reportDir: 'htmlcov',
-                        reportFiles: 'index.html',
-                        reportName: 'Coverage Report'
-                    ])
-                }
+        always {
+            // Buscar archivos XML de coverage
+            script {
+                // Listar archivos generados para debugging
+                sh 'find . -name "*.xml" -type f'
+                
+                // Usar el archivo coverage.xml que pytest-cov genera
+                junit 'coverage.xml'
             }
+            publishHTML(target: [
+                reportDir: 'htmlcov',
+                reportFiles: 'index.html',
+                reportName: 'Coverage Report'
+            ])
         }
+    }
+}
         
         stage('Lint Code') {
             steps {
