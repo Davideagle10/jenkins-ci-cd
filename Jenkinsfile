@@ -47,11 +47,7 @@ pipeline {
             post {
                 always {
                     junit 'test-results.xml'
-                    publishHTML(target: [
-                        reportDir: 'htmlcov',
-                        reportFiles: 'index.html',
-                        reportName: 'Coverage Report'
-                    ])
+                    
                 }
             }
         }
