@@ -10,12 +10,9 @@ pipeline {
         AWS_REGION = 'us-east-1'
         ECR_REPOSITORY = 'python-ci-cd'
         IMAGE_TAG = "${env.BUILD_ID}"
-       
-        
-       
     }
     
-    stages {
+    stages {  
         stage('Checkout') {
             steps {
                 checkout scm
@@ -36,7 +33,7 @@ pipeline {
                 }
             }
         }
-    }    
+        
         stage('Run Tests') {
             steps {
                 sh '''
@@ -78,19 +75,19 @@ pipeline {
         }
         
         stage('Security Scan') {
-    steps {
-        sh """
-            trivy image --severity HIGH,CRITICAL \
-                --exit-code 0 \
-                --format table \
-                ${ECR_REPOSITORY}:${IMAGE_TAG}
-            
-            echo "Security scan completado"
-        """
-    }
-}
+            steps {
+                sh """
+                    trivy image --severity HIGH,CRITICAL \
+                        --exit-code 0 \
+                        --format table \
+                        ${ECR_REPOSITORY}:${IMAGE_TAG}
+                    
+                    echo "Security scan completado"
+                """
+            }
+        }
         
- stage('Push to ECR') {
+        stage('Push to ECR') {
             steps {
                 script {
                     sh """                
@@ -112,7 +109,7 @@ pipeline {
                         docker tag ${ECR_REPOSITORY}:${IMAGE_TAG} ${ECR_URI}:latest
                         
                         echo "  ${ECR_REPOSITORY}:${IMAGE_TAG} → ${ECR_URI}:${IMAGE_TAG}"
-                        echo "  ${ECR_REPOSITORY}:${IMAGE_TAG} → ${ECR_URI}:latest"
+                        echo "  ${ECR_REPOSitORY}:${IMAGE_TAG} → ${ECR_URI}:latest"
                         echo ""
                         
                         # Paso 3: Push a ECR
@@ -129,10 +126,7 @@ pipeline {
                 }
             }
         }
-        
-        
-        
-    
+    }  // ← stages CIERRA AQUÍ (después de TODOS los stages, línea 147)
     
     post {
         always {
@@ -141,11 +135,9 @@ pipeline {
         }
         success {
             echo "Pipeline exitoso"
-            // Notificación opcional
         }
         failure {
             echo "Pipeline falló"
-            // Notificación de fallo
         }
     }
-}
+}  
