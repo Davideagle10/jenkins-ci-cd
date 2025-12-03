@@ -1,0 +1,15 @@
+.git
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+*.log
+.coverage
+.idea/
+.vscode/
+Dockerfile
+Jenkinsfile
+tests/
