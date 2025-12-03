@@ -130,14 +130,14 @@ pipeline {
     
     post {
         always {
-            echo "Pipeline ${currentBuild.fullDisplayName} completado"
-            cleanWs() // Limpiar workspace
-        }
-        success {
-            echo "Pipeline exitoso"
-        }
-        failure {
-            echo "Pipeline falló"
+            script {
+            // Buscar archivos XML de tests
+            def testResults = findFiles(glob: '**/test-results/*.xml')
+            if (testResults) {
+                junit '**/test-results/*.xml'
+            } else {
+                echo "No se encontraron reportes de tests"
+            }
         }
     }
-}  
+}
