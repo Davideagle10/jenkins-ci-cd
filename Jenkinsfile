@@ -4,16 +4,15 @@ pipeline {
     }
     
     environment {
-        // Variables de AWS ECR
-        AWS_ACCOUNT_ID = '851725481871'
+        // Variables de entorno
+        ECR_URI = credentials('ecr-uri')
+        AWS_ACCOUNT_ID = credentials('aws-account-id')
         AWS_REGION = 'us-east-1'
-        ECR_REPOSITORY = 'python-ci-cd-demo'
+        ECR_REPOSITORY = 'python-ci-cd'
         IMAGE_TAG = "${env.BUILD_ID}"
+       
         
-        // Tags para diferentes entornos
-        DEV_TAG = "1.0.0-dev-${env.BUILD_ID}"
-        STAGING_TAG = "1.0.0-staging-${env.BUILD_ID}"
-        PROD_TAG = "1.0.0"
+       
     }
     
     stages {
@@ -26,12 +25,13 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 script {
-                    // Verificar Docker
-                    sh 'docker --version'
-                    
-                    // Configurar AWS CLI (si está disponible)
                     sh '''
-                        aws --version || echo "AWS CLI no instalado"
+                        echo "=== Verificando herramientas ==="
+                        docker --version
+                        aws --version
+                        python3 --version
+                        trivy --version
+                        echo "==============================="
                     '''
                 }
             }
@@ -40,6 +40,7 @@ pipeline {
         stage('Run Tests') {
             steps {
                 sh '''
+                    pip install -r requirements.txt
                     python -m pytest tests/ -v --cov=app --cov-report=xml
                 '''
             }
@@ -77,47 +78,58 @@ pipeline {
         }
         
         stage('Security Scan') {
+    steps {
+        sh """
+            trivy image --severity HIGH,CRITICAL \
+                --exit-code 0 \
+                --format table \
+                ${ECR_REPOSITORY}:${IMAGE_TAG}
+            
+            echo "Security scan completado"
+        """
+    }
+}
+        
+ stage('Push to ECR') {
             steps {
                 script {
-                    // Escanear imagen con Trivy (si está instalado)
-                    sh '''
-                        trivy --version && \
-                        trivy image --exit-code 0 --severity HIGH,CRITICAL ${ECR_REPOSITORY}:${IMAGE_TAG} || \
-                        echo "Trivy no disponible, saltando security scan"
-                    '''
+                    sh """                
+                        echo "=== AWS ECR PUSH  ==="
+                        echo ""
+                        
+                        # Autenticación Docker con ECR
+                        aws ecr get-login-password --region ${AWS_REGION} | \
+                        docker login \
+                            --username AWS \
+                            --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+                        
+                        echo "Autenticación exitosa con ECR"
+                        echo ""
+                        
+                        echo "=== Tags creados ==="
+                        # Paso 2: Tag para ECR
+                        docker tag ${ECR_REPOSITORY}:${IMAGE_TAG} ${ECR_URI}:${IMAGE_TAG}
+                        docker tag ${ECR_REPOSITORY}:${IMAGE_TAG} ${ECR_URI}:latest
+                        
+                        echo "  ${ECR_REPOSITORY}:${IMAGE_TAG} → ${ECR_URI}:${IMAGE_TAG}"
+                        echo "  ${ECR_REPOSITORY}:${IMAGE_TAG} → ${ECR_URI}:latest"
+                        echo ""
+                        
+                        # Paso 3: Push a ECR
+                        echo "=== Subiendo imágenes a ECR ==="
+                        docker push ${ECR_URI}:${IMAGE_TAG}
+                        docker push ${ECR_URI}:latest
+                        
+                        echo ""
+                        echo "Push exitoso"
+                        echo "Imágenes disponibles en:"
+                        echo "   ${ECR_URI}:${IMAGE_TAG}"
+                        echo "   ${ECR_URI}:latest"
+                    """
                 }
             }
         }
-        
-        stage('Push to ECR') {
-    steps {
-        script {
-            withCredentials([
-                string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
-                string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY'),
-                string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID')
-            ]) {
-                sh '''
-                    # Configurar AWS CLI temporalmente
-                    export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-                    export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                    export AWS_DEFAULT_REGION=us-east-1
-                    
-                    # Login a ECR
-                    aws ecr get-login-password | docker login \
-                        --username AWS \
-                        --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com
-                    
-                    # Tag y push
-                    docker tag python-app:${BUILD_ID} \
-                        ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/python-app:${BUILD_ID}
-                    
-                    docker push ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/python-app:${BUILD_ID}
-                '''
-            }
-        }
     }
-}
         
         
     }
