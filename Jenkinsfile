@@ -37,8 +37,8 @@ pipeline {
         stage('Run Tests') {
             steps {
                 sh '''
-                    pip install -r requirements.txt
-                    python -m pytest tests/ -v --cov=app --cov-report=xml
+                    pip3 install -r requirements.txt
+                    python3 -m pytest tests/ -v --cov=app --cov-report=xml
                 '''
             }
             post {
@@ -56,7 +56,7 @@ pipeline {
         stage('Lint Code') {
             steps {
                 sh '''
-                    python -m py_compile app/*.py
+                    python3 -m py_compile app/*.py
                     echo "Linting básico completo"
                 '''
             }
